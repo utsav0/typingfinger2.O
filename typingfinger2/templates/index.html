@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="cache-control" content="no-cache" />
+    <meta http-equiv="expires" content="0" />
+    <meta http-equiv="pragma" content="no-cache" />
+    <title>typig finger</title>
+
+    <style>
+      .container {
+        border: 2px solid red;
+        width: 800px;
+        position: absolute;
+        left: 50vw;
+        top: 50%;
+        transform: translateX(-50%) translateY(-70%);
+        display: flex;
+        align-items: center;
+        flex-direction: column;
+      }
+
+      #timeCont {
+        width: 120px;
+        height: 120px;
+        border: 10px solid blue;
+        border-radius: 50%;
+        margin-top: 20px;
+        text-align: center;
+        line-height: 121px;
+        font-size: 7em;
+      }
+
+      #txtCont {
+        border: 5px inset rgb(101, 42, 0);
+        margin-top: 50px;
+        height: 120px;
+        width: 99%;
+        overflow: hidden;
+        white-space: nowrap;
+        font-size: 33px;
+        line-height: 121px;
+        color: black;
+      }
+
+      #instructionTxt {
+        text-align: center;
+        font-size: x-large;
+      }
+
+      .red {
+        color: red;
+      }
+      .green {
+        color: green;
+      }
+      .currentWord {
+        border: 2px solid purple;
+        border-radius: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="timeCont">60</div>
+      <div id="txtCont">
+        <span id="word-1">
+          <span id="char-1"
+            >&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span
+          >
+        </span>
+      </div>
+    </div>
+    <p id="instructionTxt">Start typing...</p>
+
+    <script>
+      let curChar = 0;
+      let overallChar = 0;
+      let curWord = 0;
+      let removableWord = -1;
+      let currentWord = 1;
+      let wordCount = 0;
+      let charCount = 0;
+      let allWords = [];
+
+      // getting the list of 10 words first time
+      function getWords() {
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "generatetxt", true);
+        xhr.onload = function () {
+          let tempWordList = JSON.parse(this.responseText);
+          tempWordList.forEach(addWord); //Appending words to the word container
+          allWords = allWords.concat(tempWordList); //Appending words to the all word list
+        };
+        xhr.send();
+      }
+
+      // Creating the span container for each word
+      function addWord(item) {
+        let wordCont = document.createElement("span");
+        wordCont.setAttribute("id", "word" + wordCount);
+        txtCont.appendChild(wordCont);
+        item.forEach(function (char) {
+          addChar(char, wordCont);
+        });
+        wordCount += 1;
+      }
+
+      // Adding characters in word contianer
+      function addChar(char, wordCont) {
+        let charCont = document.createElement("span");
+        charCont.innerHTML = char;
+        charCont.setAttribute("id", "char" + charCount);
+        wordCont.appendChild(charCont);
+        charCount += 1;
+      }
+
+      function goToNextWord() {
+        curWord += 1;
+        curChar = 0;
+
+        // Remvoving the extra word in left
+        document.getElementById("word" + removableWord).style.display = "none";
+        removableWord += 1;
+
+        // Removing the current word class from last word
+        document
+          .getElementById("word" + (currentWord - 1))
+          .classList.remove("currentWord");
+
+        // Adding the current word class to next word
+        document
+          .getElementById("word" + currentWord)
+          .classList.add("currentWord");
+        currentWord += 1;
+      }
+
+      function matchKey(key) {
+        // If backspace is pressed
+        if (key == "Backspace") {
+        } else {
+          // When word is exceeded
+          if (curChar > allWords[curWord].length - 2) {
+            goToNextWord();
+          }
+          //-2 because(-1 as index start with 0 and another -1 as there also contains a whitespace in word list)
+          else {
+            // When key matches
+            if (key == allWords[curWord][curChar]) {
+              let charId = "char" + overallChar;
+              document.getElementById(charId).classList.add("green");
+            }
+
+            // When key did not match
+            else {
+              document
+                .getElementById("char" + overallChar)
+                .classList.add("red");
+            }
+            curChar += 1;
+          }
+          overallChar += 1;
+        }
+      }
+
+      function checkBackspace(key) {
+        if (key == "Backspace") {
+          if (curChar > 0) {
+            overallChar -= 1;
+            curChar -= 1;
+            document
+              .getElementById("char" + overallChar)
+              .removeAttribute("class");
+          } else {
+            //Do nothing
+          }
+        }
+      }
+
+      let timeCont = document.getElementById("timeCont");
+      let body = document.getElementsByTagName("body")[0];
+      let sec = 60;
+
+      // Adding event listner to detect backspace
+      function addELToBody() {
+        body.addEventListener("keydown", firstKeyPress);
+      }
+
+      // Detecting when the key is pressed first time to start the timing
+      function firstKeyPress() {
+        startTime();
+        body.removeEventListener("keydown", firstKeyPress); // Removing the event listener from body to prevent it triggering on each key press
+      }
+
+      function countMistypedWord(wordTyped) {
+        let wrongWord = 0;
+        for (let i = 0; i < wordTyped; i++) {
+          if (
+            document.getElementById("word" + i).querySelector(".red") != null
+          ) {
+            wrongWord += 1;
+          }
+        }
+        return wrongWord;
+      }
+
+      // Timing function
+      function startTime() {
+        setInterval(() => {
+          sec -= 1;
+          if (sec == 40) {
+            let totalWords = curWord;
+            let totalChars = overallChar - 1;
+            let MTWords = countMistypedWord(curWord);
+            let MTChars = document.querySelectorAll(".red").length;
+            let wordAcc = Math.round(100 - (MTWords / totalWords) * 100);
+            let charAcc = Math.round(100 - (MTChars / totalChars) * 100);
+            let rData =
+              totalWords +
+              " " +
+              MTWords +
+              " " +
+              wordAcc +
+              " " +
+              totalChars +
+              " " +
+              MTChars +
+              " " +
+              charAcc;
+            sessionStorage.setItem("resultData", rData); // Sending the string of result data to result page
+
+            // Redirecting when the time is over
+            window.location.replace("/result");
+          }
+
+          timeCont.innerHTML = sec.toString();
+        }, 1000);
+      }
+
+      // Adding event listner to detect the key press
+      window.addEventListener("keypress", function (event) {
+        matchKey(event.key);
+      });
+      window.addEventListener("keydown", function (event) {
+        checkBackspace(event.key);
+      });
+
+      window.onload = addELToBody(); //Adding additional event listner to body
+
+      getWords();
+
+      // Adding the current word class to first word after the words are arrived from ajax
+      setTimeout(() => {
+        document.getElementById("word0").classList.add("currentWord");
+      }, 200);
+
+      // adding 10 new words after each 2 seconds
+      setInterval(() => {
+        getWords();
+      }, 2000);
+    </script>
+  </body>
+</html>
